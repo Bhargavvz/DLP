@@ -1,7 +1,7 @@
 """
 DeepFinDLP - Dataset Download Script
-Downloads and prepares the CIC-IDS2017 dataset.
-Downloads the MachineLearningCSV.zip from the official UNB server.
+Downloads CIC-IDS2017 dataset from Hugging Face (no API key needed).
+Fallbacks: wget from UNB server, manual instructions.
 """
 import os
 import sys
@@ -9,7 +9,6 @@ import glob
 import shutil
 import zipfile
 import subprocess
-import requests
 import pandas as pd
 from tqdm import tqdm
 
@@ -17,97 +16,102 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 
 
-# Official UNB download URL for the ML-ready CSVs (ZIP archive)
-ZIP_URL = "http://205.174.165.80/CICDataset/CIC-IDS-2017/Dataset/CIC-IDS-2017/MachineLearningCSV.zip"
-ZIP_DEST = os.path.join(config.DATA_DIR, "MachineLearningCSV.zip")
+# ── Hugging Face dataset (public, no auth needed) ──
+HF_REPO = "c01dsnap/CIC-IDS2017"
 
-# HTTP headers to mimic a browser
+# ── UNB direct download fallback ──
+UNB_ZIP_URL = "http://205.174.165.80/CICDataset/CIC-IDS-2017/Dataset/CIC-IDS-2017/MachineLearningCSV.zip"
+
+# HTTP headers
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "*/*",
 }
 
 
-def download_file(url: str, dest_path: str) -> bool:
-    """Download a file with progress bar."""
-    if os.path.exists(dest_path) and os.path.getsize(dest_path) > 1000:
-        print(f"  [SKIP] Already exists: {os.path.basename(dest_path)}")
-        return True
+def try_huggingface_download():
+    """Download from Hugging Face (no API key needed for public datasets)."""
+    print("\n  [Method 1] Downloading from Hugging Face (c01dsnap/CIC-IDS2017)...")
 
     try:
-        print(f"  Downloading from: {url}")
-        response = requests.get(url, stream=True, timeout=300, headers=HEADERS)
-        response.raise_for_status()
-        total_size = int(response.headers.get("content-length", 0))
-
-        with open(dest_path, "wb") as f:
-            with tqdm(total=total_size, unit="B", unit_scale=True,
-                      desc=f"  Downloading") as pbar:
-                for chunk in response.iter_content(chunk_size=131072):
-                    f.write(chunk)
-                    pbar.update(len(chunk))
+        from huggingface_hub import snapshot_download
+        print("  Using huggingface_hub.snapshot_download...")
+        path = snapshot_download(
+            repo_id=HF_REPO,
+            repo_type="dataset",
+            local_dir=os.path.join(config.DATA_DIR, "hf_download"),
+        )
+        print(f"  Downloaded to: {path}")
+        _copy_csvs_from_dir(path)
         return True
+    except ImportError:
+        print("  huggingface_hub not installed. Installing...")
+        subprocess.run([sys.executable, "-m", "pip", "install", "huggingface_hub"],
+                       capture_output=True)
+        try:
+            from huggingface_hub import snapshot_download
+            path = snapshot_download(
+                repo_id=HF_REPO,
+                repo_type="dataset",
+                local_dir=os.path.join(config.DATA_DIR, "hf_download"),
+            )
+            print(f"  Downloaded to: {path}")
+            _copy_csvs_from_dir(path)
+            return True
+        except Exception as e:
+            print(f"  huggingface_hub install failed: {e}")
     except Exception as e:
-        print(f"  [ERROR] {e}")
-        if os.path.exists(dest_path):
-            os.remove(dest_path)
-        return False
+        print(f"  Hugging Face download failed: {e}")
+
+    return False
 
 
-def try_wget_download(url: str, dest_path: str) -> bool:
-    """Fallback: try wget which handles redirects/headers better."""
+def try_wget_download():
+    """Try wget from UNB server."""
+    print("\n  [Method 2] Trying wget from UNB server...")
+    zip_dest = os.path.join(config.DATA_DIR, "MachineLearningCSV.zip")
+
     try:
-        print("  Trying wget...")
         result = subprocess.run(
-            ["wget", "-O", dest_path, "--no-check-certificate",
-             "-U", "Mozilla/5.0", "-q", "--show-progress", url],
+            ["wget", "-O", zip_dest, "--no-check-certificate",
+             "--user-agent=Mozilla/5.0", "-q", "--show-progress", UNB_ZIP_URL],
             timeout=600
         )
-        return result.returncode == 0 and os.path.exists(dest_path) and os.path.getsize(dest_path) > 1000
+        if result.returncode == 0 and os.path.exists(zip_dest) and os.path.getsize(zip_dest) > 10000:
+            _extract_zip(zip_dest)
+            return True
+        else:
+            print("  wget download failed (403 or timeout).")
+            if os.path.exists(zip_dest):
+                os.remove(zip_dest)
     except Exception as e:
-        print(f"  wget failed: {e}")
-        return False
+        print(f"  wget error: {e}")
+
+    return False
 
 
-def try_curl_download(url: str, dest_path: str) -> bool:
-    """Fallback: try curl."""
-    try:
-        print("  Trying curl...")
-        result = subprocess.run(
-            ["curl", "-L", "-o", dest_path, "-A", "Mozilla/5.0",
-             "--progress-bar", url],
-            timeout=600
-        )
-        return result.returncode == 0 and os.path.exists(dest_path) and os.path.getsize(dest_path) > 1000
-    except Exception as e:
-        print(f"  curl failed: {e}")
-        return False
-
-
-def extract_zip(zip_path: str, extract_to: str):
-    """Extract ZIP and move CSVs to the raw data directory."""
-    print(f"\n  Extracting {os.path.basename(zip_path)}...")
+def _extract_zip(zip_path):
+    """Extract ZIP and move CSVs to raw data directory."""
+    print(f"  Extracting {os.path.basename(zip_path)}...")
     with zipfile.ZipFile(zip_path, "r") as zf:
-        zf.extractall(extract_to)
+        zf.extractall(config.DATA_DIR)
+    _copy_csvs_from_dir(config.DATA_DIR)
 
-    # Find all CSVs (may be in subdirectories)
-    csv_files = []
-    for root, dirs, files in os.walk(extract_to):
+
+def _copy_csvs_from_dir(src_dir):
+    """Find and copy CSV files to the raw data directory."""
+    os.makedirs(config.RAW_DATA_DIR, exist_ok=True)
+    count = 0
+    for root, dirs, files in os.walk(src_dir):
         for f in files:
             if f.endswith(".csv"):
-                csv_files.append(os.path.join(root, f))
-
-    # Move CSVs to raw data directory
-    os.makedirs(config.RAW_DATA_DIR, exist_ok=True)
-    for csv_path in csv_files:
-        dest = os.path.join(config.RAW_DATA_DIR, os.path.basename(csv_path))
-        if not os.path.exists(dest):
-            shutil.move(csv_path, dest)
-        print(f"    {os.path.basename(csv_path)}")
-
-    print(f"  Extracted {len(csv_files)} CSV files.")
-    return len(csv_files) > 0
+                src = os.path.join(root, f)
+                dest = os.path.join(config.RAW_DATA_DIR, f)
+                if not os.path.exists(dest):
+                    shutil.copy2(src, dest)
+                    count += 1
+                    print(f"    Copied: {f}")
+    print(f"  Moved {count} CSV files to {config.RAW_DATA_DIR}")
 
 
 def download_dataset():
@@ -124,48 +128,42 @@ def download_dataset():
         print(f"  Dataset already present ({len(existing)} CSV files found).")
         return True
 
-    # ── Method 1: Download ZIP via requests ──
-    print("\n  [Method 1] Downloading MachineLearningCSV.zip via requests...")
-    success = download_file(ZIP_URL, ZIP_DEST)
-
-    # ── Method 2: wget fallback ──
-    if not success:
-        print("\n  [Method 2] Trying wget...")
-        success = try_wget_download(ZIP_URL, ZIP_DEST)
-
-    # ── Method 3: curl fallback ──
-    if not success:
-        print("\n  [Method 3] Trying curl...")
-        success = try_curl_download(ZIP_URL, ZIP_DEST)
-
-    # Extract if downloaded
-    if success and os.path.exists(ZIP_DEST):
-        extracted = extract_zip(ZIP_DEST, config.DATA_DIR)
-        if extracted:
-            print("\n  ✓ Dataset downloaded and extracted successfully!")
+    # Method 1: Hugging Face (best — no API key needed)
+    if try_huggingface_download():
+        existing = glob.glob(os.path.join(config.RAW_DATA_DIR, "*.csv"))
+        if existing:
+            print(f"\n  ✓ Downloaded {len(existing)} CSV files from Hugging Face!")
             return True
 
-    # ── Method 4: Manual instructions ──
+    # Method 2: wget from UNB
+    if try_wget_download():
+        existing = glob.glob(os.path.join(config.RAW_DATA_DIR, "*.csv"))
+        if existing:
+            print(f"\n  ✓ Downloaded {len(existing)} CSV files from UNB!")
+            return True
+
+    # Method 3: Manual instructions
     print("\n" + "=" * 70)
-    print("  AUTOMATED DOWNLOAD FAILED — Manual Steps:")
+    print("  AUTOMATED DOWNLOAD FAILED — Please download manually:")
     print("=" * 70)
     print(f"""
-  Option A — wget (run this on your server):
-    wget -O data/MachineLearningCSV.zip \\
-      "http://205.174.165.80/CICDataset/CIC-IDS-2017/Dataset/CIC-IDS-2017/MachineLearningCSV.zip"
-    cd data && unzip MachineLearningCSV.zip -d raw/
+  Option A — Hugging Face CLI (easiest):
+    pip install huggingface_hub
+    python -c "from huggingface_hub import snapshot_download; \\
+      snapshot_download('c01dsnap/CIC-IDS2017', repo_type='dataset', local_dir='data/hf')"
+    cp data/hf/*.csv data/raw/
 
-  Option B — Kaggle:
-    1. Get API key from https://www.kaggle.com/settings → Create New API Token
-    2. mkdir -p ~/.kaggle && mv ~/Downloads/kaggle.json ~/.kaggle/
-    3. kaggle datasets download -d cicdataset/cicids2017 -p data/raw --unzip
+  Option B — Kaggle (needs API key from kaggle.com/settings):
+    pip install kaggle
+    mkdir -p ~/.kaggle
+    echo '{{"username":"YOUR_USER","key":"YOUR_KEY"}}' > ~/.kaggle/kaggle.json
+    kaggle datasets download -d cicdataset/cicids2017 -p data/raw --unzip
 
-  Option C — Browser download:
-    1. Visit: https://www.unb.ca/cic/datasets/ids-2017.html
-    2. Download "MachineLearningCSV.zip"
-    3. Extract CSVs into: {config.RAW_DATA_DIR}
+  Option C — Browser:
+    1. Visit: https://www.kaggle.com/datasets/cicdataset/cicids2017
+    2. Click "Download" → Extract CSVs into: {config.RAW_DATA_DIR}
 
-  Then re-run:
+  After placing CSV files, run:
     python download_data.py --skip-download
 """)
     return False
@@ -180,6 +178,8 @@ def prepare_dataset():
     # Search for CSV files recursively
     csv_files = []
     for search_dir in [config.RAW_DATA_DIR, config.DATA_DIR]:
+        if not os.path.exists(search_dir):
+            continue
         for root, dirs, files in os.walk(search_dir):
             for f in sorted(files):
                 if f.endswith(".csv"):
