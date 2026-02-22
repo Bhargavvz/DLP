@@ -89,15 +89,24 @@ def run_data_pipeline(args):
 
 
 def run_feature_engineering(data_result, args):
-    """Step 2: Feature engineering."""
+    """Step 2: Feature engineering (subsampled for speed)."""
     print("\n" + "=" * 70)
     print("STEP 2: Feature Engineering")
     print("=" * 70)
 
     X_train, y_train = data_result["train_data"]
 
+    # Subsample for speed — MI and correlation don't need all 11M rows
+    max_fe_samples = 100000
+    if len(X_train) > max_fe_samples:
+        print(f"  Subsampling {max_fe_samples:,} rows for feature engineering (from {len(X_train):,})")
+        indices = np.random.RandomState(42).choice(len(X_train), max_fe_samples, replace=False)
+        X_sub, y_sub = X_train[indices], y_train[indices]
+    else:
+        X_sub, y_sub = X_train, y_train
+
     fe_result = full_feature_engineering(
-        X_train, y_train,
+        X_sub, y_sub,
         feature_names=data_result["artifacts"]["feature_names"],
         top_k=config.TOP_K_FEATURES,
     )
