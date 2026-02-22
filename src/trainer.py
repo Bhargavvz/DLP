@@ -9,7 +9,7 @@ import json
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 from tqdm import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -93,7 +93,7 @@ class Trainer:
         # Mixed precision
         self.use_amp = config.USE_AMP and torch.cuda.is_available()
         self.amp_dtype = config.AMP_DTYPE
-        self.scaler = GradScaler(enabled=self.use_amp and self.amp_dtype == torch.float16)
+        self.scaler = GradScaler("cuda", enabled=self.use_amp and self.amp_dtype == torch.float16)
 
         # Compile model for speed
         if config.USE_COMPILE and torch.cuda.is_available():
