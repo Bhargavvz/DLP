@@ -13,17 +13,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 
 
-# CIC-IDS2017 CSV file URLs (official mirror / Kaggle-derived)
-# We use a well-known public mirror of the dataset
+# CIC-IDS2017 CSV file URLs — Official UNB/CIC mirror
+BASE_URL = "http://205.174.165.80/CICDataset/CIC-IDS-2017/Dataset/CIC-IDS-2017/CSVs"
 DATASET_URLS = {
-    "Monday-WorkingHours.pcap_ISCX.csv": "https://intrusion-detection.distrinet-research.be/CNS2020/dataset/Monday-WorkingHours.pcap_ISCX.csv",
-    "Tuesday-WorkingHours.pcap_ISCX.csv": "https://intrusion-detection.distrinet-research.be/CNS2020/dataset/Tuesday-WorkingHours.pcap_ISCX.csv",
-    "Wednesday-workingHours.pcap_ISCX.csv": "https://intrusion-detection.distrinet-research.be/CNS2020/dataset/Wednesday-workingHours.pcap_ISCX.csv",
-    "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv": "https://intrusion-detection.distrinet-research.be/CNS2020/dataset/Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv",
-    "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv": "https://intrusion-detection.distrinet-research.be/CNS2020/dataset/Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv",
-    "Friday-WorkingHours-Morning.pcap_ISCX.csv": "https://intrusion-detection.distrinet-research.be/CNS2020/dataset/Friday-WorkingHours-Morning.pcap_ISCX.csv",
-    "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv": "https://intrusion-detection.distrinet-research.be/CNS2020/dataset/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
-    "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv": "https://intrusion-detection.distrinet-research.be/CNS2020/dataset/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+    "Monday-WorkingHours.pcap_ISCX.csv": f"{BASE_URL}/Monday-WorkingHours.pcap_ISCX.csv",
+    "Tuesday-WorkingHours.pcap_ISCX.csv": f"{BASE_URL}/Tuesday-WorkingHours.pcap_ISCX.csv",
+    "Wednesday-workingHours.pcap_ISCX.csv": f"{BASE_URL}/Wednesday-workingHours.pcap_ISCX.csv",
+    "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv": f"{BASE_URL}/Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv",
+    "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv": f"{BASE_URL}/Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv",
+    "Friday-WorkingHours-Morning.pcap_ISCX.csv": f"{BASE_URL}/Friday-WorkingHours-Morning.pcap_ISCX.csv",
+    "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv": f"{BASE_URL}/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
+    "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv": f"{BASE_URL}/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
 }
 
 
