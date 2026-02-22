@@ -182,7 +182,7 @@ def prepare_splits(df: pd.DataFrame, use_smote: bool = None):
     if use_smote:
         print("\n  Applying SMOTE oversampling on training set...")
         counter_before = Counter(y_train)
-        smote = SMOTE(random_state=config.RANDOM_STATE, n_jobs=-1)
+        smote = SMOTE(random_state=config.RANDOM_STATE)
         X_train, y_train = smote.fit_resample(X_train, y_train)
         counter_after = Counter(y_train)
         print(f"  Before SMOTE: {dict(counter_before)}")
