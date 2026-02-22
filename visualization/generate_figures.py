@@ -24,7 +24,6 @@ sns.set_theme(style="whitegrid", font_scale=1.2)
 plt.rcParams.update({
     "figure.dpi": config.FIGURE_DPI,
     "savefig.dpi": config.FIGURE_DPI,
-    "savefig.bbox_inches": "tight",
     "font.size": config.FONT_SIZE,
     "axes.titlesize": 14,
     "axes.labelsize": 12,
