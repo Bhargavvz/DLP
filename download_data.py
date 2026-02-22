@@ -175,17 +175,17 @@ def prepare_dataset():
     print("DeepFinDLP - Preparing Dataset")
     print("=" * 70)
 
-    # Search for CSV files recursively
+    # Search for CSV files in data/raw/ only (avoid duplicates from hf_download)
     csv_files = []
-    for search_dir in [config.RAW_DATA_DIR, config.DATA_DIR]:
+    seen_names = set()
+    for search_dir in [config.RAW_DATA_DIR]:
         if not os.path.exists(search_dir):
             continue
         for root, dirs, files in os.walk(search_dir):
             for f in sorted(files):
-                if f.endswith(".csv"):
-                    full_path = os.path.join(root, f)
-                    if full_path not in csv_files:
-                        csv_files.append(full_path)
+                if f.endswith(".csv") and f not in seen_names:
+                    csv_files.append(os.path.join(root, f))
+                    seen_names.add(f)
 
     if not csv_files:
         print("[ERROR] No CSV files found. Please download the dataset first.")
