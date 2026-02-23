@@ -1,0 +1,82 @@
+{
+  "rf": {
+    "model_name": "Random Forest",
+    "accuracy": 0.9981583186532647,
+    "precision_weighted": 0.9985227610113879,
+    "recall_weighted": 0.9981583186532647,
+    "f1_weighted": 0.9982860164512319,
+    "f1_macro": 0.9352691199595456,
+    "auc_roc_weighted": 0.9999486635366959,
+    "train_time": 831.6939742565155
+  },
+  "svm": {
+    "model_name": "SVM (RBF)",
+    "accuracy": 0.8495261556432696,
+    "precision_weighted": 0.9441696475247258,
+    "recall_weighted": 0.8495261556432696,
+    "f1_weighted": 0.8830580884506358,
+    "f1_macro": 0.546044097132759,
+    "auc_roc_weighted": 0.981313608657594,
+    "train_time": 43.945194244384766
+  },
+  "xgb": {
+    "model_name": "XGBoost",
+    "accuracy": 0.9983184648573286,
+    "precision_weighted": 0.9986899673923857,
+    "recall_weighted": 0.9983184648573286,
+    "f1_weighted": 0.9984477490972425,
+    "f1_macro": 0.9366748111426597,
+    "auc_roc_weighted": 0.9999617031127027,
+    "train_time": 59.935245752334595
+  },
+  "dnn": {
+    "model_name": "Basic DNN",
+    "accuracy": 0.9759945550290618,
+    "precision_weighted": 0.9897260863954108,
+    "recall_weighted": 0.9759945550290618,
+    "f1_weighted": 0.9818432798644611,
+    "f1_macro": 0.733206015582142,
+    "auc_roc_weighted": 0.9994711945166282,
+    "train_time": 996.9304211139679
+  },
+  "cnn": {
+    "model_name": "1D-CNN",
+    "accuracy": 0.9284217120571251,
+    "precision_weighted": 0.9687349172649119,
+    "recall_weighted": 0.9284217120571251,
+    "f1_weighted": 0.9444264855759948,
+    "f1_macro": 0.6264009996514945,
+    "auc_roc_weighted": 0.9946526546391623,
+    "train_time": 1718.2178573608398
+  },
+  "lstm": {
+    "model_name": "BiLSTM",
+    "accuracy": 0.9745438188275414,
+    "precision_weighted": 0.989139528409737,
+    "recall_weighted": 0.9745438188275414,
+    "f1_weighted": 0.9807522562836112,
+    "f1_macro": 0.727616046069423,
+    "auc_roc_weighted": 0.9988450361641348,
+    "train_time": 770.0737502574921
+  },
+  "cnn_lstm": {
+    "model_name": "CNN-BiLSTM",
+    "accuracy": 0.959676127853193,
+    "precision_weighted": 0.9690455614621414,
+    "recall_weighted": 0.959676127853193,
+    "f1_weighted": 0.9625245047908184,
+    "f1_macro": 0.7206545125374271,
+    "auc_roc_weighted": 0.990765568036714,
+    "train_time": 8198.28697514534
+  },
+  "deep_fin_dlp": {
+    "model_name": "DeepFinDLP (Proposed)",
+    "accuracy": 0.9310947406102512,
+    "precision_weighted": 0.9752520230859137,
+    "recall_weighted": 0.9310947406102512,
+    "f1_weighted": 0.9487669002427327,
+    "f1_macro": 0.6302203777120132,
+    "auc_roc_weighted": 0.996418971365236,
+    "train_time": 7571.064396858215
+  }
+}
