@@ -4,6 +4,26 @@ __pycache__/
 *$py.class
 *.so
 *.egg-info/
+venv/
+env/
+.venv/
+
+# Node
+node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
 dist/
 build/
 *.egg

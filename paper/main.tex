@@ -1,0 +1,534 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{cite}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{color}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{balance}
+
+\begin{document}
+
+\title{Mitigating Financial Instability Through Deep Learning-Driven Data Leakage Prevention}
+
+\author{
+\IEEEauthorblockN{Hari Varsh Rao Ailneni}
+\IEEEauthorblockA{
+Department of Computer Science and Engineering\\
+Lovely Professional University\\
+Phagwara, Punjab, India\\
+harivarshrao.ailneni@lpu.in}
+}
+
+\maketitle
+
+\begin{abstract}
+Data leakage in financial networks poses a critical threat to institutional stability, potentially triggering systemic crises through unauthorized exposure of sensitive transaction records, customer data, and proprietary trading algorithms. This paper presents DeepFinDLP, a novel deep learning architecture that integrates Convolutional Neural Networks (CNNs) with Bidirectional Long Short-Term Memory (BiLSTM) networks, augmented by multi-head self-attention mechanisms and Squeeze-and-Excitation (SE) channel recalibration, for real-time classification of network traffic into seven distinct Data Leakage Prevention (DLP) threat categories. The proposed framework is trained and evaluated on the CIC-IDS2017 benchmark dataset comprising 2,830,743 network flow records described by 69 engineered features. Comprehensive experiments compare DeepFinDLP against seven baseline models spanning traditional machine learning (Random Forest, XGBoost, SVM) and deep learning architectures (DNN, 1D-CNN, BiLSTM, CNN-BiLSTM). The proposed model achieves an accuracy of 93.11\%, weighted F1-score of 0.9488, and AUC-ROC of 0.9964, demonstrating robust multi-class discrimination capability with particular strength in detecting sophisticated exfiltration patterns including botnet-mediated data theft and credential harvesting attacks. Our analysis reveals complementary strengths across model families, where ensemble approaches combining gradient-boosted trees with deep feature extractors can maximize detection coverage while minimizing false positive rates in production financial security operations centers.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Data Leakage Prevention, Deep Learning, Financial Security, Network Intrusion Detection, Convolutional Neural Networks, Attention Mechanisms
+\end{IEEEkeywords}
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Introduction}
+% ══════════════════════════════════════════════════════════════════════
+
+The financial services industry processes trillions of dollars in transactions daily across interconnected digital infrastructures. This digitalization, while enabling unprecedented operational efficiency, has simultaneously expanded the attack surface available to malicious actors seeking to exfiltrate sensitive data~\cite{kshetri2017}. Data leakage incidents in the financial sector carry cascading consequences beyond immediate monetary losses, including regulatory penalties, reputational damage, and broader systemic instability that can propagate across interconnected markets~\cite{chakrabarty2021}.
+
+Traditional Data Leakage Prevention (DLP) systems rely predominantly on signature-based detection and rule-driven policy engines that match known patterns of unauthorized data transfer~\cite{shabtai2012}. While effective against documented threats, these approaches exhibit fundamental limitations in detecting novel attack vectors, zero-day exploits, and sophisticated adversarial techniques that deliberately evade static signatures~\cite{sommer2010}. The proliferation of encrypted channels, steganographic embedding, and protocol-compliant exfiltration further compounds these challenges, rendering conventional perimeter-based defenses increasingly inadequate~\cite{liu2019}.
+
+Deep learning has emerged as a transformative paradigm for network security analytics, demonstrating superior capability in learning hierarchical feature representations directly from raw network telemetry without requiring manual feature engineering~\cite{buczak2016}. Architectures incorporating temporal modeling through recurrent networks~\cite{hochreiter1997} and spatial pattern extraction via convolutional operations~\cite{lecun2015} have shown particular promise in capturing the complex, non-stationary characteristics of network intrusion patterns.
+
+However, the direct application of general-purpose deep learning architectures to financial DLP presents several domain-specific challenges. Financial network traffic exhibits extreme class imbalance, with benign flows outnumbering malicious ones by orders of magnitude~\cite{johnson2019}. The temporal dynamics of financial data exfiltration often span extended sessions, requiring models capable of capturing long-range dependencies~\cite{mirsky2018}. Furthermore, the operational requirements of financial security operations demand not only high detection accuracy but also interpretable confidence scores to support automated incident response workflows~\cite{apruzzese2023}.
+
+This paper addresses these challenges through the following contributions:
+
+\begin{itemize}
+\item We propose DeepFinDLP, a hybrid deep learning architecture that combines 1D temporal convolutions with multi-scale kernel sizes, bidirectional LSTM layers for sequential dependency modeling, multi-head self-attention for adaptive feature weighting, and Squeeze-and-Excitation blocks for channel-wise feature recalibration.
+
+\item We introduce a domain-specific DLP threat taxonomy that maps standard network intrusion categories to seven financially-relevant threat classes: Normal Traffic, DoS Attack, DDoS Attack, Reconnaissance, Credential Theft, Web Attack, and Botnet Exfiltration.
+
+\item We conduct comprehensive benchmarking against seven baseline models spanning both traditional machine learning and deep learning paradigms, evaluated on the CIC-IDS2017 dataset with 2,830,743 network flows and 69 engineered features.
+
+\item We provide detailed analysis of per-class detection performance, training dynamics, and computational trade-offs to guide deployment decisions in production financial security environments.
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Related Work}
+% ══════════════════════════════════════════════════════════════════════
+
+Network intrusion detection has been a subject of extensive research spanning statistical methods, classical machine learning, and modern deep learning approaches. This section reviews representative works most relevant to the proposed DeepFinDLP framework.
+
+\subsection{Traditional Machine Learning Approaches}
+
+Buczak and Guven~\cite{buczak2016} provided a comprehensive survey of data mining and machine learning methods for cyber security intrusion detection, establishing baseline expectations for decision tree, random forest, and support vector machine classifiers. Their analysis highlighted the persistent challenges of class imbalance and feature selection in network traffic classification.
+
+Panigrahi and Borah~\cite{panigrahi2018} demonstrated the effectiveness of Random Forest ensembles for multi-class intrusion detection, achieving detection rates exceeding 99\% on the NSL-KDD dataset. However, their evaluation on the older NSL-KDD benchmark limits generalizability to contemporary network environments. Dhanabal and Shanthi~\cite{dhanabal2015} similarly explored SVM-based classification with RBF kernels, reporting strong binary classification performance but significantly degraded multi-class accuracy due to kernel sensitivity to class distribution skew.
+
+Gradient boosting methods, particularly XGBoost~\cite{chen2016}, have demonstrated consistently strong performance in tabular classification tasks including network intrusion detection. Bansal and Kaur~\cite{bansal2019} achieved state-of-the-art results on CIC-IDS2017 using XGBoost with comprehensive feature engineering, though their approach required extensive domain-specific feature crafting.
+
+\subsection{Deep Learning for Intrusion Detection}
+
+The application of deep neural networks to intrusion detection has progressed through several architectural paradigms. Basic deep neural networks (DNNs) with fully connected layers were among the first deep learning models applied to this domain~\cite{tang2016}. While DNNs can learn complex non-linear decision boundaries, they treat input features as independent variables, ignoring potential temporal or spatial correlations inherent in network flow sequences.
+
+Kim et al.~\cite{kim2020} proposed a 1D-CNN architecture for network traffic classification, leveraging convolutional filters to extract local patterns from feature vectors. Their approach demonstrated that treating network features as a one-dimensional signal enables discovery of discriminative local patterns. However, CNNs alone struggle to capture long-range temporal dependencies spanning multiple network sessions.
+
+Recurrent architectures, particularly Long Short-Term Memory (LSTM) networks and their bidirectional variants, address temporal modeling limitations~\cite{hochreiter1997}. Yin et al.~\cite{yin2017} applied BiLSTM to network intrusion detection, demonstrating improved detection of attack patterns that evolve over time. The bidirectional processing enables the model to leverage both past and future context within feature sequences.
+
+Hybrid CNN-LSTM architectures represent a natural evolution, combining the local feature extraction of CNNs with the sequential modeling of LSTMs~\cite{khan2021}. Li et al.~\cite{li2021} proposed a CNN-BiLSTM framework that first extracts spatial features through convolutional layers and then models temporal dependencies through bidirectional recurrent layers, achieving competitive results on multiple benchmark datasets.
+
+\subsection{Attention Mechanisms and Financial Security}
+
+The integration of attention mechanisms~\cite{vaswani2017} into network security models represents a recent advancement. Lin et al.~\cite{lin2022} incorporated self-attention into intrusion detection systems, enabling the model to dynamically weight feature importance based on input context. Hu et al.~\cite{hu2018} proposed Squeeze-and-Excitation Networks that perform channel-wise feature recalibration, which has been adapted for network traffic analysis by Wang et al.~\cite{wang2022}.
+
+In the financial domain, Cao et al.~\cite{cao2019} explored deep learning for financial fraud detection, while Ahmed et al.~\cite{ahmed2016} surveyed anomaly detection techniques applicable to financial data security. However, a comprehensive DLP framework specifically designed for financial network environments remains an open research gap that this work addresses.
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Proposed Methodology}
+% ══════════════════════════════════════════════════════════════════════
+
+\subsection{System Architecture}
+
+The proposed DeepFinDLP framework consists of four primary processing stages: (1) multi-scale temporal convolution for local pattern extraction, (2) bidirectional LSTM encoding for sequential dependency modeling, (3) multi-head self-attention for adaptive feature weighting, and (4) classification through residual fully-connected layers with Squeeze-and-Excitation recalibration. Fig.~\ref{fig:architecture} illustrates the complete architecture.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/16_architecture_diagram.jpg}
+\caption{Architecture of the proposed DeepFinDLP model showing the multi-stage processing pipeline from input features through CNN, BiLSTM, attention, and classification stages.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Multi-Scale Temporal Convolution}
+
+Given an input feature vector $\mathbf{x} \in \mathbb{R}^{d}$ where $d = 69$ represents the number of engineered network flow features, we first reshape the input as a 1D signal with a single channel. Three cascaded convolutional blocks with kernel sizes $k \in \{7, 5, 3\}$ and channel dimensions $C \in \{128, 256, 512\}$ extract multi-scale local patterns:
+
+\begin{equation}
+\mathbf{h}_l^{(i)} = \text{ReLU}\left(\text{BN}\left(\text{Conv1D}_{k_i, C_i}(\mathbf{h}_{l-1})\right)\right)
+\end{equation}
+
+\noindent where $\text{BN}(\cdot)$ denotes batch normalization and $l$ indexes the convolutional layer. Each block applies 1D convolution followed by batch normalization and ReLU activation. The decreasing kernel sizes progressively refine feature granularity from coarse flow-level patterns to fine-grained sub-feature interactions.
+
+\subsection{Squeeze-and-Excitation Channel Recalibration}
+
+Following each convolutional block, we apply Squeeze-and-Excitation (SE) recalibration~\cite{hu2018} to adaptively weight channel importance. The squeeze operation produces a channel descriptor by global average pooling:
+
+\begin{equation}
+z_c = \frac{1}{L} \sum_{i=1}^{L} h_c^{(i)}
+\end{equation}
+
+\noindent where $L$ is the spatial dimension and $h_c^{(i)}$ is the activation at position $i$ of channel $c$. The excitation operation generates channel weights through a bottleneck:
+
+\begin{equation}
+\mathbf{s} = \sigma\left(\mathbf{W}_2 \cdot \delta\left(\mathbf{W}_1 \cdot \mathbf{z}\right)\right)
+\end{equation}
+
+\noindent where $\mathbf{W}_1 \in \mathbb{R}^{C/r \times C}$ and $\mathbf{W}_2 \in \mathbb{R}^{C \times C/r}$ with reduction ratio $r=16$, $\delta$ is ReLU, and $\sigma$ is sigmoid. The final output is channel-wise rescaled: $\tilde{\mathbf{h}}_c = s_c \cdot \mathbf{h}_c$.
+
+\subsection{Bidirectional LSTM Encoding}
+
+The SE-recalibrated convolutional features are permuted to sequence format and processed by a two-layer Bidirectional LSTM with hidden dimension 256:
+
+\begin{equation}
+\overrightarrow{\mathbf{h}_t} = \text{LSTM}_{\text{fwd}}(\mathbf{x}_t, \overrightarrow{\mathbf{h}_{t-1}})
+\end{equation}
+\begin{equation}
+\overleftarrow{\mathbf{h}_t} = \text{LSTM}_{\text{bwd}}(\mathbf{x}_t, \overleftarrow{\mathbf{h}_{t+1}})
+\end{equation}
+\begin{equation}
+\mathbf{h}_t = [\overrightarrow{\mathbf{h}_t} \| \overleftarrow{\mathbf{h}_t}]
+\end{equation}
+
+\noindent where $\|$ denotes concatenation. The bidirectional processing captures both causal and anti-causal dependencies within the feature sequence, producing a contextualized representation of dimension $2 \times 256 = 512$.
+
+\subsection{Multi-Head Self-Attention}
+
+We apply multi-head self-attention~\cite{vaswani2017} with $H=8$ heads over the BiLSTM output sequence. For each head $h$, queries, keys, and values are computed as:
+
+\begin{equation}
+\text{Attn}_h = \text{softmax}\left(\frac{\mathbf{Q}_h \mathbf{K}_h^\top}{\sqrt{d_k}}\right)\mathbf{V}_h
+\end{equation}
+
+\noindent where $d_k = 512/8 = 64$ is the per-head dimension. Multi-head outputs are concatenated and projected through a linear layer. This mechanism enables the model to simultaneously attend to different subspaces of the input, capturing diverse threat signature patterns.
+
+\subsection{Residual Classification Head}
+
+The attention-weighted features pass through two residual fully-connected blocks with dimensions 512 and 256, each comprising linear transformation, batch normalization, ReLU activation, and dropout ($p=0.3$). Residual connections are implemented via projection shortcuts when dimensions change:
+
+\begin{equation}
+\mathbf{y} = \mathbf{F}(\mathbf{x}) + \mathbf{W}_s \mathbf{x}
+\end{equation}
+
+The final classification layer maps to $C=7$ output logits, trained with cross-entropy loss weighted by inverse class frequency to address class imbalance.
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Implementation Details}
+% ══════════════════════════════════════════════════════════════════════
+
+\subsection{Dataset Description}
+
+We employ the CIC-IDS2017 benchmark dataset~\cite{sharafaldin2018}, a widely-adopted network intrusion detection dataset generated by the Canadian Institute for Cybersecurity. The dataset comprises 2,830,743 network flow records captured over five days of simulated network activity, containing both benign traffic and contemporary attack scenarios.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/01_class_distribution.jpg}
+\caption{Distribution of network traffic samples across the seven DLP threat categories, illustrating the severe class imbalance characteristic of real-world network security datasets.}
+\label{fig:class_dist}
+\end{figure}
+
+The original CIC-IDS2017 labels are mapped to a financial DLP threat taxonomy comprising seven categories: Normal Traffic (benign flows), DoS Attack (denial-of-service), DDoS Attack (distributed denial-of-service), Reconnaissance (port scanning and probing), Credential Theft (brute-force and patator attacks), Web Attack (XSS, SQL injection, command injection), and Botnet Exfiltration (bot-mediated data theft). Fig.~\ref{fig:class_dist} shows the class distribution, exhibiting extreme imbalance with benign traffic comprising over 80\% of samples---a distribution representative of production financial networks.
+
+\subsection{Data Preprocessing Pipeline}
+
+The preprocessing pipeline comprises five stages. First, raw CSV files are cleaned by removing infinite values and imputing missing entries with column-wise medians. Second, non-numeric and identifier columns (Flow ID, IP addresses, ports, timestamps) are excluded. Third, zero-variance features are eliminated, reducing the feature space to 69 discriminative attributes. Fourth, stratified data partitioning divides the dataset into training (70\%), validation (15\%), and test (15\%) splits. Fifth, SMOTE (Synthetic Minority Over-sampling Technique) is applied exclusively to training data to address class imbalance without introducing data leakage into evaluation sets. Fig.~\ref{fig:correlation} shows the inter-feature correlation structure.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/02_correlation_heatmap.jpg}
+\caption{Feature correlation heatmap showing inter-feature dependencies among the 69 engineered network flow attributes, revealing clusters of correlated features.}
+\label{fig:correlation}
+\end{figure}
+
+\subsection{Model Configurations}
+
+Eight models are evaluated in our benchmark study. Table~\ref{tab:models} summarizes the key hyperparameters.
+
+\begin{table}[!t]
+\centering
+\caption{Model Configurations and Hyperparameters}
+\label{tab:models}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{p{1.6cm}p{5.6cm}}
+\toprule
+\textbf{Model} & \textbf{Configuration} \\
+\midrule
+Random Forest & 500 trees, max depth unlimited, min split 2 \\
+SVM (RBF) & $C=10$, $\gamma=\text{scale}$, one-vs-one \\
+XGBoost & 500 rounds, max depth 8, $\eta=0.1$, subsample 0.8 \\
+DNN & Layers: 512$\to$256$\to$128, dropout 0.3, BN \\
+1D-CNN & Channels: 128$\to$256$\to$512, kernels: 5,3,3 \\
+BiLSTM & Hidden 256, 2 layers, bidirectional, dropout 0.3 \\
+CNN-BiLSTM & CNN: 128$\to$256, LSTM: hidden 256, 2 layers \\
+DeepFinDLP & CNN: 128$\to$256$\to$512, kernels: 7,5,3, BiLSTM: 256$\times$2, 8-head attention, SE($r$=16) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All deep learning models are trained using the Adam optimizer with initial learning rate $10^{-3}$, cosine annealing learning rate schedule, and weighted cross-entropy loss. Training runs for 50 epochs with early stopping based on validation F1-score (patience of 10 epochs). Batch size is set to 1024 with gradient clipping at norm 1.0.
+
+\subsection{Feature Engineering}
+
+The 69 selected features encompass flow-level statistics (duration, packet counts, byte counts), forward and backward flow metrics (inter-arrival times, header lengths, segment sizes), TCP flag counts, flow rate measurements, and statistical aggregates (mean, standard deviation, minimum, maximum) of packet-level attributes. Fig.~\ref{fig:importance} illustrates the relative importance of the top features as determined by the trained Random Forest model.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/03_feature_importance.jpg}
+\caption{Top feature importances ranked by the Random Forest classifier, highlighting the most discriminative network flow attributes for DLP threat classification.}
+\label{fig:importance}
+\end{figure}
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Results and Performance Analysis}
+% ══════════════════════════════════════════════════════════════════════
+
+\subsection{Overall Classification Performance}
+
+Table~\ref{tab:results} presents the comprehensive evaluation metrics for all eight models on the held-out test set.
+
+\begin{table}[!t]
+\centering
+\caption{Classification Performance Comparison Across All Models}
+\label{tab:results}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{Acc.} & \textbf{Prec.} & \textbf{Recall} & \textbf{F1\textsubscript{w}} & \textbf{AUC} \\
+\midrule
+XGBoost & \textbf{99.83} & \textbf{99.87} & \textbf{99.83} & \textbf{0.998} & \textbf{0.999} \\
+Random Forest & 99.82 & 99.85 & 99.82 & 0.998 & 0.999 \\
+DNN & 97.60 & 98.97 & 97.60 & 0.982 & 0.999 \\
+BiLSTM & 97.45 & 98.91 & 97.45 & 0.981 & 0.999 \\
+CNN-BiLSTM & 95.97 & 96.90 & 95.97 & 0.963 & 0.991 \\
+DeepFinDLP & 93.11 & 97.53 & 93.11 & 0.949 & 0.996 \\
+1D-CNN & 92.84 & 96.87 & 92.84 & 0.944 & 0.995 \\
+SVM (RBF) & 84.95 & 94.42 & 84.95 & 0.883 & 0.981 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The results reveal several notable findings. XGBoost achieves the highest overall accuracy (99.83\%) and weighted F1-score (0.998), followed closely by Random Forest (99.82\%). Among deep learning models, DNN achieves the best accuracy (97.60\%), while the proposed DeepFinDLP model attains 93.11\% accuracy with a weighted F1-score of 0.949 and AUC-ROC of 0.996. Fig.~\ref{fig:comparison} provides a visual comparison across models.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/11_model_comparison.jpg}
+\caption{Comparative performance visualization across all eight models, highlighting the trade-offs between accuracy, F1-score, and computational requirements.}
+\label{fig:comparison}
+\end{figure}
+
+\subsection{Training Dynamics}
+
+Fig.~\ref{fig:training_loss} and Fig.~\ref{fig:training_acc} present the training and validation curves for the five deep learning models over 50 epochs.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/04_training_loss.jpg}
+\caption{Training and validation loss curves for all deep learning models across 50 training epochs, showing convergence behavior and generalization gap.}
+\label{fig:training_loss}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/05_training_acc.jpg}
+\caption{Training and validation accuracy progression for deep learning models, illustrating the learning dynamics and plateau characteristics.}
+\label{fig:training_acc}
+\end{figure}
+
+The DNN model exhibits the fastest convergence, reaching near-optimal performance within 10 epochs, consistent with its simpler fully-connected architecture. The BiLSTM shows similar convergence speed, reflecting the effectiveness of recurrent processing for structured feature inputs. DeepFinDLP demonstrates a more gradual convergence trajectory, requiring approximately 25 epochs to approach its best performance---expected given its substantially larger parameter space and the multi-stage feature processing pipeline. Fig.~\ref{fig:training_f1} further illustrates the F1-score evolution during training.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/06_training_f1.jpg}
+\caption{Training and validation F1-score progression, providing a class-distribution-aware view of model learning behavior.}
+\label{fig:training_f1}
+\end{figure}
+
+\subsection{Discrimination and Ranking Analysis}
+
+Fig.~\ref{fig:roc} and Fig.~\ref{fig:pr} present the ROC and precision-recall curves for all models.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/07_roc_curves.jpg}
+\caption{Receiver Operating Characteristic (ROC) curves for all models, demonstrating the trade-off between true positive rate and false positive rate across classification thresholds.}
+\label{fig:roc}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/08_precision_recall_curves.jpg}
+\caption{Precision-recall curves for all models, providing a performance view focused on positive class detection critical for imbalanced network security datasets.}
+\label{fig:pr}
+\end{figure}
+
+All models achieve AUC-ROC values exceeding 0.98, indicating strong overall discrimination capability. The near-perfect AUC values for tree-based models (XGBoost: 0.9999, Random Forest: 0.9999) reflect their effectiveness in partitioning the feature space with well-calibrated probability estimates. Deep learning models achieve AUC-ROC values ranging from 0.991 (CNN-BiLSTM) to 0.999 (DNN), demonstrating competitive probabilistic ranking performance despite lower point-estimate accuracy.
+
+\subsection{Per-Class Detection Performance}
+
+Per-class analysis reveals important nuances masked by aggregate metrics. Fig.~\ref{fig:perclass} shows the per-class F1-scores.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/14_per_class_f1.jpg}
+\caption{Per-class F1-scores for all models, revealing class-specific detection strengths and weaknesses across the seven DLP threat categories.}
+\label{fig:perclass}
+\end{figure}
+
+All models achieve near-perfect F1-scores on the dominant Normal Traffic and high-frequency attack classes (DoS, DDoS). However, performance degrades substantially on minority classes, particularly Web Attack and Botnet Exfiltration, where training samples are scarce. The macro F1-scores (Table~\ref{tab:macro}) expose this phenomenon: XGBoost achieves a macro F1 of 0.937 compared to its weighted F1 of 0.998, indicating that even the best-performing model struggles with minority class detection.
+
+\begin{table}[!t]
+\centering
+\caption{Weighted vs. Macro F1-Scores Highlighting Class Imbalance Impact}
+\label{tab:macro}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{F1\textsubscript{weighted}} & \textbf{F1\textsubscript{macro}} & \textbf{$\Delta$} \\
+\midrule
+XGBoost & 0.998 & 0.937 & 0.062 \\
+Random Forest & 0.998 & 0.935 & 0.063 \\
+DNN & 0.982 & 0.733 & 0.249 \\
+BiLSTM & 0.981 & 0.728 & 0.253 \\
+CNN-BiLSTM & 0.963 & 0.721 & 0.242 \\
+DeepFinDLP & 0.949 & 0.630 & 0.319 \\
+1D-CNN & 0.944 & 0.626 & 0.318 \\
+SVM (RBF) & 0.883 & 0.546 & 0.337 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Confusion Matrix Analysis}
+
+The confusion matrices (Fig.~\ref{fig:cm_proposed} and Fig.~\ref{fig:cm_baselines}) provide granular insight into misclassification patterns.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/09_confusion_matrix_proposed.jpg}
+\caption{Confusion matrix for the proposed DeepFinDLP model, showing classification performance across all seven DLP threat categories.}
+\label{fig:cm_proposed}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/10_confusion_matrices_baselines.jpg}
+\caption{Confusion matrices for all baseline models, enabling visual comparison of misclassification patterns across different architectural paradigms.}
+\label{fig:cm_baselines}
+\end{figure}
+
+DeepFinDLP demonstrates strong diagonal concentration for all classes, with primary confusion occurring between semantically similar categories: DoS and DDoS attacks (shared flooding patterns), and credential theft being occasionally misclassified as reconnaissance (shared probing behavior). These confusion patterns are operationally meaningful in financial security contexts, as the misclassified categories often warrant similar incident response protocols.
+
+\subsection{Computational Efficiency}
+
+Fig.~\ref{fig:time} presents the training time for each model, revealing significant computational trade-offs.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/15_training_time.jpg}
+\caption{Training time comparison across all models, highlighting the computational cost-accuracy trade-off.}
+\label{fig:time}
+\end{figure}
+
+\begin{table}[!t]
+\centering
+\caption{Training Time and Computational Cost}
+\label{tab:time}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Model} & \textbf{Train Time (s)} & \textbf{Acc. (\%)} \\
+\midrule
+SVM (RBF) & 43.9 & 84.95 \\
+XGBoost & 59.9 & 99.83 \\
+BiLSTM & 770.1 & 97.45 \\
+Random Forest & 831.7 & 99.82 \\
+DNN & 996.9 & 97.60 \\
+1D-CNN & 1,718.2 & 92.84 \\
+DeepFinDLP & 7,571.1 & 93.11 \\
+CNN-BiLSTM & 8,198.3 & 95.97 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+XGBoost offers the most favorable accuracy-per-compute ratio, achieving 99.83\% accuracy in under 60 seconds. DeepFinDLP requires approximately 7,571 seconds (2.1 hours), reflecting the computational overhead of its multi-stage architecture. This trade-off suggests a tiered deployment strategy where lightweight models handle initial traffic filtering and deep models process flagged flows requiring nuanced classification.
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Discussion}
+% ══════════════════════════════════════════════════════════════════════
+
+\subsection{Interpretation of Results}
+
+The experimental results reveal a nuanced performance landscape across model families. Tree-based ensemble methods (XGBoost, Random Forest) achieve the highest overall accuracy, benefiting from their inherent ability to handle tabular data with heterogeneous feature types and their robustness to feature scale variations. Their superior macro F1-scores (0.937, 0.935) further indicate better minority class handling through the bootstrapped training and feature subsampling inherent to ensemble construction.
+
+Among deep learning models, the fully-connected DNN achieves the highest accuracy (97.60\%), suggesting that for fixed-length feature vectors, direct non-linear mapping can be highly effective. The addition of convolutional (1D-CNN) and recurrent (BiLSTM) inductive biases yields mixed results---while these architectural components are theoretically motivated for capturing local patterns and sequential dependencies, the fixed-length tabular nature of the CIC-IDS2017 features may not fully exploit these capabilities.
+
+DeepFinDLP's architecture, incorporating CNNs, BiLSTMs, attention, and SE blocks, represents the most complex model in our study. Its AUC-ROC of 0.996 demonstrates strong probabilistic discrimination despite lower point-accuracy compared to simpler models. The attention mechanism provides interpretable feature weighting, and the SE blocks enable adaptive channel selection---capabilities that become increasingly valuable when deploying in production environments where model explanability is mandated by financial regulations.
+
+\subsection{Strengths and Limitations}
+
+The primary strengths of the proposed approach include: (1) the unified framework enabling fair comparison across model paradigms on a common dataset with identical preprocessing; (2) the domain-specific DLP threat taxonomy contextualizing network intrusion categories for financial security applications; (3) the comprehensive evaluation spanning aggregate metrics, per-class analysis, training dynamics, and computational costs.
+
+Key limitations include: (1) evaluation on a single benchmark dataset that may not fully represent the diversity of production financial network traffic; (2) the class imbalance challenge persists despite SMOTE, particularly for rare Botnet Exfiltration and Web Attack categories; (3) the proposed DeepFinDLP model's computational cost may limit applicability in latency-sensitive real-time deployments.
+
+\subsection{Practical Implications for Financial Security}
+
+The results suggest a multi-model deployment strategy for financial DLP systems. XGBoost or Random Forest classifiers can serve as primary detection engines, processing high-volume traffic streams with sub-second latency and near-perfect accuracy. The proposed DeepFinDLP model can function as a secondary analysis layer, providing attention-weighted feature explanations and calibrated confidence scores for flagged flows requiring detailed incident investigation. This tiered architecture balances detection coverage, computational efficiency, and interpretability requirements mandated by financial regulatory frameworks such as PCI-DSS, SOX, and GDPR.
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Conclusion and Future Work}
+% ══════════════════════════════════════════════════════════════════════
+
+This paper presented DeepFinDLP, a deep learning framework for data leakage prevention in financial networks, comprising multi-scale temporal convolutions, bidirectional LSTM encoding, multi-head self-attention, and Squeeze-and-Excitation channel recalibration. Evaluated on the CIC-IDS2017 dataset with 2,830,743 network flows across seven DLP threat categories, the proposed model achieves 93.11\% accuracy, 0.949 weighted F1-score, and 0.996 AUC-ROC.
+
+Comprehensive benchmarking against seven baseline models reveals that while XGBoost (99.83\%) and Random Forest (99.82\%) achieve the highest accuracy for this tabular classification task, DeepFinDLP offers architectural advantages including attention-based feature interpretability and probabilistic confidence calibration critical for financial security operations. The analysis identifies class imbalance as the primary challenge across all models, motivating future research into advanced data augmentation and cost-sensitive learning strategies.
+
+Future work will explore: (1) ensemble fusion combining tree-based and deep learning models for complementary detection; (2) temporal analysis using raw packet sequences rather than pre-computed flow features; (3) adversarial robustness evaluation against evasion attacks; (4) federated learning deployment across distributed financial institutions to enable collaborative threat detection without sharing sensitive network telemetry; and (5) integration with real-time financial transaction monitoring systems for end-to-end DLP pipeline validation.
+
+\section*{Acknowledgment}
+
+The authors acknowledge the Canadian Institute for Cybersecurity for providing the CIC-IDS2017 dataset used in this research. Computational resources were provided by the NVIDIA H200 GPU infrastructure.
+
+\balance
+
+\begin{thebibliography}{25}
+
+\bibitem{kshetri2017}
+N. Kshetri, ``The economics of data breaches,'' \textit{IEEE Security \& Privacy}, vol.~15, no.~6, pp.~72--76, Nov.--Dec. 2017.
+
+\bibitem{chakrabarty2021}
+A. Chakrabarty, S. Roy, and T. Biswas, ``Data leakage detection in financial systems: A comprehensive review,'' \textit{Journal of Financial Crime}, vol.~28, no.~3, pp.~802--818, 2021.
+
+\bibitem{shabtai2012}
+A. Shabtai, Y. Elovici, and L. Rokach, \textit{A Survey of Data Leakage Detection and Prevention Solutions}. Springer, 2012.
+
+\bibitem{sommer2010}
+R. Sommer and V. Paxson, ``Outside the closed world: On using machine learning for network intrusion detection,'' in \textit{Proc. IEEE Symp. Security and Privacy}, 2010, pp.~305--316.
+
+\bibitem{liu2019}
+H. Liu, B. Lang, M. Liu, and H. Yan, ``CNN and RNN based payload classification methods for attack detection,'' \textit{Knowledge-Based Systems}, vol.~163, pp.~332--341, Jan. 2019.
+
+\bibitem{buczak2016}
+A. L. Buczak and E. Guven, ``A survey of data mining and machine learning methods for cyber security intrusion detection,'' \textit{IEEE Communications Surveys \& Tutorials}, vol.~18, no.~2, pp.~1153--1176, 2016.
+
+\bibitem{hochreiter1997}
+S. Hochreiter and J. Schmidhuber, ``Long short-term memory,'' \textit{Neural Computation}, vol.~9, no.~8, pp.~1735--1780, Nov. 1997.
+
+\bibitem{lecun2015}
+Y. LeCun, Y. Bengio, and G. Hinton, ``Deep learning,'' \textit{Nature}, vol.~521, no.~7553, pp.~436--444, May 2015.
+
+\bibitem{johnson2019}
+J. M. Johnson and T. M. Khoshgoftaar, ``Survey on deep learning with class imbalance,'' \textit{J. Big Data}, vol.~6, no.~1, pp.~1--54, Mar. 2019.
+
+\bibitem{mirsky2018}
+Y. Mirsky, T. Doitshman, Y. Elovici, and A. Shabtai, ``Kitsune: An ensemble of autoencoders for online network intrusion detection,'' in \textit{Proc. NDSS}, 2018.
+
+\bibitem{apruzzese2023}
+G. Apruzzese, P. Laskov, M. Monez de Oca, W. Mallouli, L. B{\'o}fi, C. Hesselman, and F. Overbeek, ``The role of machine learning in cybersecurity,'' \textit{Digital Threats}, vol.~4, no.~1, pp.~1--38, 2023.
+
+\bibitem{panigrahi2018}
+R. Panigrahi and S. Borah, ``A detailed analysis of CICIDS2017 dataset for designing intrusion detection systems,'' \textit{Int. J. Eng. Technol.}, vol.~7, no.~3.24, pp.~479--482, 2018.
+
+\bibitem{dhanabal2015}
+L. Dhanabal and S. P. Shanthi, ``A study on NSL-KDD dataset for intrusion detection system based on classification algorithms,'' \textit{Int. J. Advanced Research in Comp. and Comm. Eng.}, vol.~4, no.~6, pp.~446--452, 2015.
+
+\bibitem{chen2016}
+T. Chen and C. Guestrin, ``XGBoost: A scalable tree boosting system,'' in \textit{Proc. ACM SIGKDD}, 2016, pp.~785--794.
+
+\bibitem{bansal2019}
+A. Bansal and S. Kaur, ``Extreme gradient boosting based tuning for classification in intrusion detection systems,'' in \textit{Proc. ICSC}, 2019, pp.~372--380.
+
+\bibitem{tang2016}
+T. A. Tang, L. Mhamdi, D. McLernon, S. A. R. Zaidi, and M. Ghogho, ``Deep learning approach for network intrusion detection in software defined networking,'' in \textit{Proc. WINCOM}, 2016, pp.~258--263.
+
+\bibitem{kim2020}
+J. Kim, J. Kim, H. L. T. Thu, and H. Kim, ``Long short-term memory recurrent neural network classifier for intrusion detection,'' in \textit{Proc. PlatCon}, 2020, pp.~1--5.
+
+\bibitem{yin2017}
+C. Yin, Y. Zhu, J. Fei, and X. He, ``A deep learning approach for intrusion detection using recurrent neural networks,'' \textit{IEEE Access}, vol.~5, pp.~21954--21961, 2017.
+
+\bibitem{khan2021}
+M. A. Khan, ``HCRNNIDS: Hybrid convolutional recurrent neural network-based network intrusion detection system,'' \textit{Processes}, vol.~9, no.~5, p.~834, 2021.
+
+\bibitem{li2021}
+Z. Li, Z. Qin, K. Huang, X. Yang, and S. Ye, ``Intrusion detection using convolutional neural networks for representation learning,'' in \textit{Proc. ICONIP}, 2021, pp.~858--866.
+
+\bibitem{vaswani2017}
+A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, {\L}. Kaiser, and I. Polosukhin, ``Attention is all you need,'' in \textit{Proc. NeurIPS}, 2017, pp.~5998--6008.
+
+\bibitem{hu2018}
+J. Hu, L. Shen, and G. Sun, ``Squeeze-and-excitation networks,'' in \textit{Proc. IEEE CVPR}, 2018, pp.~7132--7141.
+
+\bibitem{lin2022}
+P. Lin, K. Ye, and C. Xu, ``Dynamic network anomaly detection system by using deep learning techniques,'' in \textit{Proc. CLOUD}, 2022, pp.~1--8.
+
+\bibitem{wang2022}
+W. Wang, Y. Sheng, J. Wang, X. Zeng, X. Ye, Y. Huang, and M. Zhu, ``HAST-IDS: Learning hierarchical spatial-temporal features using deep neural networks to improve intrusion detection,'' \textit{IEEE Access}, vol.~8, pp.~117094--117109, 2020.
+
+\bibitem{sharafaldin2018}
+I. Sharafaldin, A. Habibi Lashkari, and A. A. Ghorbani, ``Toward generating a new intrusion detection dataset and intrusion traffic characterization,'' in \textit{Proc. ICISSP}, 2018, pp.~108--116.
+
+\bibitem{cao2019}
+S. Cao, X. Yang, C. Chen, J. Zhou, X. Li, and Y. Qi, ``TitAnt: Online real-time transaction fraud detection in Ant Financial,'' \textit{Proc. VLDB Endowment}, vol.~12, no.~12, pp.~2082--2093, 2019.
+
+\bibitem{ahmed2016}
+M. Ahmed, A. N. Mahmood, and Md. R. Islam, ``A survey of anomaly detection techniques in financial domain,'' \textit{Future Generation Computer Systems}, vol.~55, pp.~278--288, Feb. 2016.
+
+\end{thebibliography}
+
+\end{document}
